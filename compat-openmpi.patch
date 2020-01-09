@@ -1,0 +1,11 @@
+--- compat-openmpi.spec.orig    2016-06-01 09:22:39.631717405 -0500
++++ compat-openmpi.spec 2016-06-01 09:23:27.841776627 -0500
+@@ -349,6 +349,7 @@
+ cd openmpi-1.8.1
+ %patch300 -p1 -b .ltdl
+ %patch301 -p1 -b .onesided
++patch -p1 -b -z .nfstest < $RPM_SOURCE_DIR/openmpi-1.8.1-nfstest.patch
+ cd ..
+ 
+ cd openmpi-1.4.3
+
