@@ -19,7 +19,7 @@
 
 Name:			compat-openmpi%{?_cc_name_suffix}
 Version:		1.4.3
-Release:		1.1%{?dist}
+Release:		1.2%{?dist}
 Summary:		Open Message Passing Interface
 Group:			Development/Libraries
 License:		BSD, MIT and Romio
@@ -68,6 +68,32 @@ Obsoletes:		openmpi-libs
 # ARM has issues with a lack of "atomic primitives" so we'll exclude it as well for the moment
 ExcludeArch: s390 s390x %{arm}
 
+# Private openmpi libraries
+%{?filter_setup:           
+%filter_from_provides /^libmca_common_sm.so.2/d
+%filter_from_provides /^libompi_dbg_msgq.so/d  
+%filter_from_provides /^libompitrace.so.0/d  
+%filter_from_provides /^libopen-pal.so.3/d 
+%filter_from_provides /^libopen-rte.so.3/d
+%filter_from_provides /^libotf.so.0/d     
+%filter_from_provides /^libvt-hyb.so.0/d
+%filter_from_provides /^libvt-mpi.so.0/d
+%filter_from_provides /^libvt-mt.so.0/d 
+%filter_from_provides /^libvt.so.0/d   
+%filter_from_provides /^mca_/d      
+%filter_from_requires /^libmca_common_sm.so.2/d
+%filter_from_requires /^libompitrace.so.0/d    
+%filter_from_requires /^libopen-pal.so.3/d 
+%filter_from_requires /^libopen-rte.so.3/d
+%filter_from_requires /^libotf.so.0/d     
+%filter_from_requires /^libvt-hyb.so.0/d
+%filter_from_requires /^libvt-mpi.so.0/d
+%filter_from_requires /^libvt-mt.so.0/d 
+%filter_from_requires /^libvt.so.0/d   
+%filter_setup                       
+}            
+%global __provides_exclude_from %{_libdir}/openmpi/lib/(lib(mca|ompi|open-(pal|rte|trace)|otf|v)|openmpi/).*.so
+%global __requires_exclude lib(mca|ompi|open-(pal|rte|trace)|otf|vt).*
 
 %description
 Open MPI is an open source, freely available implementation of both the 
@@ -165,17 +191,23 @@ mkdir non-psm
 cp -r psm/* non-psm
 cd psm/openmpi-1.4.3
 ./autogen.sh
+cd opal/libltdl
+../../autogen.sh
+cd ../..
 cd ../openmpi-1.5.3
 ./autogen.sh
 cd ../../non-psm
 %endif
 cd openmpi-1.4.3
 ./autogen.sh
+cd opal/libltdl
+../../autogen.sh
+cd ../..
 cd ../openmpi-1.5.3
 ./autogen.sh
 %build
-%ifarch x86_64
 XFLAGS="-fPIC"
+%ifarch x86_64
 cd psm/openmpi-1.4.3
 ./configure --prefix=%{_libdir}/%{name}-psm --with-libnuma=/usr \
 	--with-openib=/usr \
@@ -185,10 +217,8 @@ cd psm/openmpi-1.4.3
 	--enable-mpi-threads \
 	--enable-openib-ibcm \
 	--with-sge \
-	--with-libltdl=external \
 	--with-valgrind \
 	--enable-memchecker \
-	--with-esmtp \
 	--with-wrapper-cflags="%{?opt_cflags} %{?modeflag}" \
 	--with-wrapper-cxxflags="%{?opt_cxxflags} %{?modeflag}" \
 	--with-wrapper-fflags="%{?opt_fflags} %{?modeflag}" \
@@ -241,7 +271,6 @@ cd openmpi-1.4.3
 	--enable-mpi-threads \
 	--enable-openib-ibcm \
 	--with-sge \
-	--with-libltdl=external \
 %ifnarch %{sparc}
 	--with-valgrind \
 	--enable-memchecker \
@@ -249,7 +278,6 @@ cd openmpi-1.4.3
 %ifarch x86_64
 	--with-psm=no \
 %endif
-	--with-esmtp \
 	--with-wrapper-cflags="%{?opt_cflags} %{?modeflag}" \
 	--with-wrapper-cxxflags="%{?opt_cxxflags} %{?modeflag}" \
 	--with-wrapper-fflags="%{?opt_fflags} %{?modeflag}" \
@@ -467,7 +495,15 @@ rm -rf %{buildroot}
 %endif
 
 %changelog
-* Wed Aug 14 2013 Jay Fenlason <fenlason@redhat.com> 1.4.3-2
+* Tue Jun 3 2014 Jay Fenlason <fenlason@redhat.com> 1.4.3-1.2
+- Don't bother passing in options that the 1.4.3 configure doesn't
+  understand.
+- set XFLAGS on all archs, not just x86_64.
+- Copy requires/provides filtering from openmpi so this will stop
+  providing libotf.so.0
+  Resolves: rhbz1097290
+
+* Wed Aug 14 2013 Jay Fenlason <fenlason@redhat.com> 1.4.3-1.1
 * Also include 1.5.3 libraries so users of RHEL-6.5+ can run
   programs compiled on RHEL-6.2-
   Resolves: rhbz876315
