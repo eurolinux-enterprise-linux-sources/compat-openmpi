@@ -19,7 +19,7 @@
 
 Name:			compat-openmpi%{?_cc_name_suffix}
 Version:		1.4.3
-Release:		1.2%{?dist}
+Release:		1%{?dist}
 Summary:		Open Message Passing Interface
 Group:			Development/Libraries
 License:		BSD, MIT and Romio
@@ -37,10 +37,7 @@ Source0:		openmpi-%{version}-RH.tar.bz2
 Source1:		compat-openmpi.module.in
 Source2:		macros.compat-openmpi
 Source3:		macros.compat-openmpi-psm
-Source4:		openmpi-1.5.3-RH.tbz
-Patch0:			openmpi-1.4.3-autogen.patch
-Patch1:			openmpi-1.5-dt-textrel.patch
-Patch2:			openmpi-1.5.3-build.patch
+Patch0:			openmpi-1.4.1-autogen.patch
 BuildRoot:		%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires:		flex
 BuildRequires:		gcc-gfortran, libtool, numactl-devel
@@ -68,32 +65,6 @@ Obsoletes:		openmpi-libs
 # ARM has issues with a lack of "atomic primitives" so we'll exclude it as well for the moment
 ExcludeArch: s390 s390x %{arm}
 
-# Private openmpi libraries
-%{?filter_setup:           
-%filter_from_provides /^libmca_common_sm.so.2/d
-%filter_from_provides /^libompi_dbg_msgq.so/d  
-%filter_from_provides /^libompitrace.so.0/d  
-%filter_from_provides /^libopen-pal.so.3/d 
-%filter_from_provides /^libopen-rte.so.3/d
-%filter_from_provides /^libotf.so.0/d     
-%filter_from_provides /^libvt-hyb.so.0/d
-%filter_from_provides /^libvt-mpi.so.0/d
-%filter_from_provides /^libvt-mt.so.0/d 
-%filter_from_provides /^libvt.so.0/d   
-%filter_from_provides /^mca_/d      
-%filter_from_requires /^libmca_common_sm.so.2/d
-%filter_from_requires /^libompitrace.so.0/d    
-%filter_from_requires /^libopen-pal.so.3/d 
-%filter_from_requires /^libopen-rte.so.3/d
-%filter_from_requires /^libotf.so.0/d     
-%filter_from_requires /^libvt-hyb.so.0/d
-%filter_from_requires /^libvt-mpi.so.0/d
-%filter_from_requires /^libvt-mt.so.0/d 
-%filter_from_requires /^libvt.so.0/d   
-%filter_setup                       
-}            
-%global __provides_exclude_from %{_libdir}/openmpi/lib/(lib(mca|ompi|open-(pal|rte|trace)|otf|v)|openmpi/).*.so
-%global __requires_exclude lib(mca|ompi|open-(pal|rte|trace)|otf|vt).*
 
 %description
 Open MPI is an open source, freely available implementation of both the 
@@ -179,36 +150,23 @@ Contains development headers and libraries for compat-openmpi using InfiniPath
 %define namepsmarch compat-openmpi-psm-%{_arch}%{?_cc_name_suffix}
 
 %prep
-%setup -c %{name}-%{version} -q -a 4
-%patch0 -p0 -b .ltversion
-%patch1 -p0 -b .dt-textrel
-%patch2 -p0 -b .build
+%setup -q -n openmpi-%{version}
+%patch0 -p1 -b .ltversion
 %ifarch x86_64
 mkdir .psm
 mv * .psm
 mv .psm psm
 mkdir non-psm
 cp -r psm/* non-psm
-cd psm/openmpi-1.4.3
+cd psm
 ./autogen.sh
-cd opal/libltdl
-../../autogen.sh
-cd ../..
-cd ../openmpi-1.5.3
-./autogen.sh
-cd ../../non-psm
+cd ../non-psm
 %endif
-cd openmpi-1.4.3
-./autogen.sh
-cd opal/libltdl
-../../autogen.sh
-cd ../..
-cd ../openmpi-1.5.3
 ./autogen.sh
 %build
-XFLAGS="-fPIC"
 %ifarch x86_64
-cd psm/openmpi-1.4.3
+XFLAGS="-fPIC"
+cd psm
 ./configure --prefix=%{_libdir}/%{name}-psm --with-libnuma=/usr \
 	--with-openib=/usr \
 	--mandir=%{_mandir}/%{namepsmarch} \
@@ -216,30 +174,6 @@ cd psm/openmpi-1.4.3
 	--sysconfdir=%{_sysconfdir}/%{namepsmarch} \
 	--enable-mpi-threads \
 	--enable-openib-ibcm \
-	--with-sge \
-	--with-valgrind \
-	--enable-memchecker \
-	--with-wrapper-cflags="%{?opt_cflags} %{?modeflag}" \
-	--with-wrapper-cxxflags="%{?opt_cxxflags} %{?modeflag}" \
-	--with-wrapper-fflags="%{?opt_fflags} %{?modeflag}" \
-	--with-wrapper-fcflags="%{?opt_fcflags} %{?modeflag}" \
-	CC=%{opt_cc} CXX=%{opt_cxx} \
-	LDFLAGS='-Wl,-z,noexecstack' \
-	CFLAGS="%{?opt_cflags} $RPM_OPT_FLAGS $XFLAGS" \
-	CXXFLAGS="%{?opt_cxxflags} $RPM_OPT_FLAGS $XFLAGS" \
-	FC=%{opt_fc} FCFLAGS="%{?opt_fcflags} $RPM_OPT_FLAGS $XFLAGS" \
-	F77=%{opt_f77} FFLAGS="%{?opt_fflags} $RPM_OPT_FLAGS $XFLAGS"
-
-make %{?_smp_mflags}
-
-cd ../openmpi-1.5.3
-
-./configure --prefix=%{_libdir}/%{name}-psm --with-libnuma=/usr \
-	--with-openib=/usr \
-	--mandir=%{_mandir}/%{namepsmarch} \
-	--includedir=%{_includedir}/%{namepsmarch} \
-	--sysconfdir=%{_sysconfdir}/%{namepsmarch} \
-	--enable-mpi-threads \
 	--with-sge \
 	--with-libltdl=external \
 	--with-valgrind \
@@ -258,11 +192,9 @@ cd ../openmpi-1.5.3
 
 make %{?_smp_mflags}
 
-
-cd ../../non-psm
+cd ../non-psm
 %endif
 
-cd openmpi-1.4.3
 ./configure --prefix=%{_libdir}/%{name} --with-libnuma=/usr \
 	--with-openib=/usr \
 	--mandir=%{_mandir}/%{namearch} \
@@ -270,35 +202,6 @@ cd openmpi-1.4.3
 	--sysconfdir=%{_sysconfdir}/%{namearch} \
 	--enable-mpi-threads \
 	--enable-openib-ibcm \
-	--with-sge \
-%ifnarch %{sparc}
-	--with-valgrind \
-	--enable-memchecker \
-%endif
-%ifarch x86_64
-	--with-psm=no \
-%endif
-	--with-wrapper-cflags="%{?opt_cflags} %{?modeflag}" \
-	--with-wrapper-cxxflags="%{?opt_cxxflags} %{?modeflag}" \
-	--with-wrapper-fflags="%{?opt_fflags} %{?modeflag}" \
-	--with-wrapper-fcflags="%{?opt_fcflags} %{?modeflag}" \
-	CC=%{opt_cc} CXX=%{opt_cxx} \
-	LDFLAGS='-Wl,-z,noexecstack' \
-	CFLAGS="%{?opt_cflags} $RPM_OPT_FLAGS $XFLAGS" \
-	CXXFLAGS="%{?opt_cxxflags} $RPM_OPT_FLAGS $XFLAGS" \
-	FC=%{opt_fc} FCFLAGS="%{?opt_fcflags} $RPM_OPT_FLAGS $XFLAGS" \
-	F77=%{opt_f77} FFLAGS="%{?opt_fflags} $RPM_OPT_FLAGS $XFLAGS"
-
-make %{?_smp_mflags}
-
-cd ../openmpi-1.5.3
-
-./configure --prefix=%{_libdir}/%{name} --with-libnuma=/usr \
-	--with-openib=/usr \
-	--mandir=%{_mandir}/%{namearch} \
-	--includedir=%{_includedir}/%{namearch} \
-	--sysconfdir=%{_sysconfdir}/%{namearch} \
-	--enable-mpi-threads \
 	--with-sge \
 	--with-libltdl=external \
 %ifnarch %{sparc}
@@ -325,11 +228,8 @@ make %{?_smp_mflags}
 %install
 rm -rf %{buildroot}
 %ifarch x86_64
-cd psm/openmpi-1.4.3
+cd psm
 make install DESTDIR=%{buildroot}
-cd ../openmpi-1.5.3
-make install DESTDIR=%{buildroot}
-
 rm -fr %{buildroot}%{_libdir}/%{name}-psm/lib/pkgconfig
 find %{buildroot}%{_libdir}/%{name}-psm/lib -name \*.la | xargs rm
 find %{buildroot}%{_mandir}/%{namepsmarch} -type f | xargs gzip -9
@@ -348,14 +248,10 @@ mkdir -p %{buildroot}/%{_sysconfdir}/rpm
 cp %SOURCE3 %{buildroot}/%{_sysconfdir}/rpm/macros.%{namepsmarch}
 mkdir -p %{buildroot}/%{_fmoddir}/%{namepsmarch}
 mkdir -p %{buildroot}/%{python_sitearch}/compat-openmpi-psm%{?_cc_name_suffix}
-cd ../../non-psm
+cd ../non-psm
 %endif
 
-cd openmpi-1.4.3
 make install DESTDIR=%{buildroot}
-cd ../openmpi-1.5.3
-make install DESTDIR=%{buildroot}
-
 rm -fr %{buildroot}%{_libdir}/%{name}/lib/pkgconfig
 find %{buildroot}%{_libdir}/%{name}/lib -name \*.la | xargs rm
 find %{buildroot}%{_mandir}/%{namearch} -type f | xargs gzip -9
@@ -374,8 +270,6 @@ mkdir -p %{buildroot}/%{_sysconfdir}/rpm
 cp %SOURCE2 %{buildroot}/%{_sysconfdir}/rpm/macros.%{namearch}
 mkdir -p %{buildroot}/%{_fmoddir}/%{namearch}
 mkdir -p %{buildroot}/%{python_sitearch}/compat-openmpi%{?_cc_name_suffix}
-
-
 
 %clean
 rm -rf %{buildroot}
@@ -432,7 +326,6 @@ rm -rf %{buildroot}
 %{_mandir}/%{namearch}/man7/opal*
 %{_libdir}/%{name}/share/openmpi/openmpi-valgrind.supp
 %{_libdir}/%{name}/share/openmpi/mpi*.txt
-%{_libdir}/%{name}/share/openmpi/orte*.txt
 %{_libdir}/%{name}/share/vampirtrace/*
 %{_sysconfdir}/rpm/macros.%{namearch}
 
@@ -489,25 +382,11 @@ rm -rf %{buildroot}
 %{_mandir}/%{namepsmarch}/man7/opal*
 %{_libdir}/%{name}-psm/share/openmpi/openmpi-valgrind.supp
 %{_libdir}/%{name}-psm/share/openmpi/mpi*.txt
-%{_libdir}/%{name}-psm/share/openmpi/orte*.txt
 %{_libdir}/%{name}-psm/share/vampirtrace/*
 %{_sysconfdir}/rpm/macros.%{namepsmarch}
 %endif
 
 %changelog
-* Tue Jun 3 2014 Jay Fenlason <fenlason@redhat.com> 1.4.3-1.2
-- Don't bother passing in options that the 1.4.3 configure doesn't
-  understand.
-- set XFLAGS on all archs, not just x86_64.
-- Copy requires/provides filtering from openmpi so this will stop
-  providing libotf.so.0
-  Resolves: rhbz1097290
-
-* Wed Aug 14 2013 Jay Fenlason <fenlason@redhat.com> 1.4.3-1.1
-* Also include 1.5.3 libraries so users of RHEL-6.5+ can run
-  programs compiled on RHEL-6.2-
-  Resolves: rhbz876315
-
 * Thu Oct 13 2011 Jay Fenlason <fenlason@redhat.com> 1.4.3-1
 - New compat package to make users of openmpi-1.4 on RHEL-6 happy.
   Resolves: rhbz741009
